@@ -1,0 +1,109 @@
+// Findlinks1 prints the links in an HTML document read from standard input.
+package main
+ 
+import (
+        "fmt"
+        "os"
+ 
+        "golang.org/x/net/html"
+)
+ 
+func main() {
+        doc, err := html.Parse(os.Stdin)
+        if err != nil {
+                fmt.Fprintf(os.Stderr, "findlinks1: %v\n", err)
+                os.Exit(1)
+        }
+        for _, link := range visit(nil, doc) {
+                fmt.Println(link)
+        }
+ 
+        var res = make(map[string]int)
+        res = count(res, doc)
+        for k, v := range res {
+                fmt.Printf("%s==>%d \n", k, v)
+        }
+        //fmt.Println(res)
+        for _, text := range visit3(nil, doc) {
+                fmt.Println(text)
+        }
+ 
+        for _, link := range visit4(nil, doc) {
+                fmt.Println(link)
+        }
+ 
+}
+ 
+// visit appends to links each link found in n and returns the result.
+func visit(links []string, n *html.Node) []string {
+        if n.Type == html.ElementNode && n.Data == "a" {
+                for _, a := range n.Attr {
+                        if a.Key == "href" {
+                                links = append(links, a.Val)
+                        }
+                }
+        }
+        /*
+           练习 5.1： 修改findlinks代码中遍历n.FirstChild链表的部分，将循环调用visit，改成递归调用。
+           实在是不知道为啥不对，我选择放弃
+                if n.FirstChild!=nil{
+                        links=visit(links,n.FirstChild)
+                }else if n.NextSibling!=nil{
+                        //n=n.NextSibling
+                        links=visit(links,n.NextSibling)
+                }
+		*/
+		return visit(visit(links, n.FirstChild), n.NextSibling)
+        /*for c := n.FirstChild; c != nil; c = c.NextSibling {
+                links = visit(links, c)
+        }
+		return links
+		*/
+}
+ 
+/*
+练习 5.2： 编写函数，记录在HTML树中出现的同名元素的次数。
+*/
+func count(res map[string]int, n *html.Node) map[string]int {
+        if n.Type == html.ElementNode {
+                res[n.Data]++
+        }
+        for c := n.FirstChild; c != nil; c = c.NextSibling {
+                res = count(res, c)
+        }
+        return res
+}
+ 
+/*
+练习 5.3： 编写函数输出所有text结点的内容。注意不要访问<script>和<style>元素,因为这些元素对浏览者是不可见的。
+*/
+func visit3(texts []string, n *html.Node) []string {
+        if n.Type == html.TextNode {
+                texts = append(texts, n.Data)
+        }
+        for c := n.FirstChild; c != nil; c = c.NextSibling {
+                if c.Data == "script" || c.Data == "style" {
+                        continue
+                }
+ 
+                texts = visit3(texts, c)
+        }
+        return texts
+}
+ 
+/*
+练习 5.4： 扩展visit函数，使其能够处理其他类型的结点，如images、scripts和style sheets。
+*/
+func visit4(links []string, n *html.Node) []string {
+        if n.Type == html.ElementNode && (n.Data == "a" || n.Data == "img" || n.Data == "link" || n.Data == "scripts") {
+                for _, a := range n.Attr {
+                        if a.Key == "href" {
+                                links = append(links, a.Val)
+                        }
+                }
+        }
+        for c := n.FirstChild; c != nil; c = c.NextSibling {
+                links = visit4(links, c)
+        }
+        return links
+}
